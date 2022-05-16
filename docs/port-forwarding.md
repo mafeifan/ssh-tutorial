@@ -1,5 +1,15 @@
 # SSH 端口转发
 
+本地转发，动态转发，远程转发
+## 选项参数
+
+* `-N`：表示这个 SSH 连接只进行端口转发，不登录远程 Shell，不能执行远程命令，只能充当隧道。
+* `-f`：表示 SSH 连接在后台运行。
+* `-D`：表示动态转发，见下面的"动态转发"
+* `-C`：所有通过 SSH 发送或接收的数据将会被压缩，并且任然是加密的。减小所占的带宽
+* `-g`：复用访问时作为网管，支持多主机访问本地端口。
+* `-L`：侦听本地端口，见下面的"本地转发"
+
 ## 简介
 
 SSH 除了登录服务器，还有一大用途，就是作为加密通信的中介，充当两台服务器之间的通信加密跳板，使得原本不加密的通信变成加密通信。这个功能称为端口转发（port forwarding），又称 SSH 隧道（tunnel）。
@@ -194,6 +204,49 @@ $ ssh -L 2999:target-host:7999 tunnel2-host -N
 
 最终效果就是，访问本机的`7999`端口，就会转发到`target-host`的`7999`端口。
 
+### 动态转发场景
+
+在家访问公司里的内网服务器部署的web服务
+
+公司网络没有固定公网IP，放了台只能内网访问的服务器，内网IP是10.10.10.10。
+
+路由器提前设置好：
+  * 配置DDNS(动态DNS解析服务)，得到 osvlabs.tpddns.cn
+  * 配置端口转发 233 -> 10.10.10.10:22
+  * 测试 ssh -P 233 root@osvlabs.tpddns.cn
+
+  这么做其实和在公司`ssh root@10.10.10.10` 效果一样
+
+建立动态转发：
+  * ssh -D 9988 -f -C -N root@osvlabs.tpddns.cn -p 233
+  * firefox - 常规 - 网络设置 - 手动配置代理 - socks v5 主机 127.0.0.1 端口 9988
+  * 9988 是自己起的，本地没被占用的端口
+  * 测试 https://10.10.10.10:9090 这个是在公司内网可以访问的地址
+
+![](https://pek3b.qingstor.com/hexo-blog/20220516224752.png)
+
+动态域名
+
+![](https://pek3b.qingstor.com/hexo-blog/20220516224941.png)
+
+端口转发
+
+![](https://pek3b.qingstor.com/hexo-blog/20220516223702.png)
+
+火狐配置网络代理
+
+### 本地转发场景
+
+aws中，mongodb数据库所在服务器server_db在内网中，需要通过跳板机server_jump访问
+现在想在本地直接访问server_db。
+
+步骤：
+1. server_jump安全组添加防火墙入站规则
+2. 打开本地端口转发,`ssh -L port_local:server_db:server_db_port user_jump_server@jump_server_ip -N`
+
+实例：`ssh -L 27018:52.80.80.80:27017 administrator@54.222.222.222 -N`
+
+这样：mongodb的访问字符串为`mongodb://administrator:password@localhost:27018/dbname`
 ## 参考链接
 
 - [An Illustrated Guide to SSH Tunnels](https://solitum.net/posts/an-illustrated-guide-to-ssh-tunnels/), Scott Wiersdorf
